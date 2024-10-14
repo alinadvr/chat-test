@@ -1,101 +1,184 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+export enum ChatWebSocketEvents {
+  CONNECT = "onConnect",
+  JOIN_CHAT = "join",
+  SEND_MESSAGE = "sendMessage", // send message from frontend to backend
+  SEND_ACTION = "sendActions",
+  UPDATE_MESSAGE = "updateMessage",
+  UPDATE_MESSAGE_STATUSES = "updateMessageStatus", // mark message as read
+}
+
+export type ChatType = {
+  id: string;
+  patient: string; // id
+  patientName: string;
+  patientAvatar?: number[] | null;
+  patientAvatarBlob?: string;
+  doctor: string; // id
+  createdAt: string;
+  pinned?: boolean | null;
+  pinnedDate?: string | null; // date
+  // when getting chat list last message and last action is the only element in the array
+  messages: MessageType[]; // can be an empty array
+  actions: ChatActionType[]; // can be an empty array
+};
+
+export type MessageType = {
+  id: string;
+  chatId: string;
+  sender: string; // id
+  content: string; // can be an empty string
+  status: MessageStatusType;
+  sentAt: string; // date
+  files: {
+    name: string;
+    data: string; // base64 or File
+    file?: File;
+    preview?: string;
+  }[]; // can be an empty array
+  replyTo?: string | null;
+  urgent?: boolean | null;
+};
+
+export enum MessageStatusType {
+  READ = "READ",
+  UNREAD = "UNREAD",
+}
+
+export type ChatActionType = {
+  chatId: string;
+  type: ChatActionName;
+  sentAt: string; // date
+};
+
+export enum ChatActionName {
+  HEALTH_VITALS_REQUEST = "HEALTH_VITALS_REQUEST",
+  HEALTH_VITALS_RESPONSE = "HEALTH_VITALS_RESPONSE",
+  DOCTOR_REASSIGN = "DOCTOR_REASSIGN",
+}
+
+const token = `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YjlmMGM0NS02YTdjLTQxZTMtYjI1My0wYWExMTZjNmM3ODciLCJlbWFpbCI6bnVsbCwiY3JlYXRlZEF0IjoxNzI4ODkxNzYwNzY2LCJpYXQiOjE3Mjg4OTE3NjAsImV4cCI6MTgxNDg5MTc2MH0.9hWu3EfYE3O1L2vbcKUZVrZ2H0xT_fjSwqONVcEChNM`;
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [unreadMsgs, setUnreadMsgs] = useState<string[]>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  const socketConnectionRef = useRef<
+    { isLoading: false; socket: WebSocket } | { isLoading: true } | null
+  >(null);
+
+  useEffect(() => {
+    if (
+      socketConnectionRef.current !== null &&
+      (socketConnectionRef.current.isLoading ||
+        socketConnectionRef.current.socket)
+    )
+      return;
+
+    console.log("connect");
+    const socket = new WebSocket("http://localhost:3018/chat");
+
+    socketConnectionRef.current = { isLoading: true };
+
+    socket.onopen = function () {
+      console.log("Соединение установлено");
+      socketConnectionRef.current = { isLoading: false, socket };
+
+      socket.send(
+        JSON.stringify({
+          Authorization: token,
+          "User-Type": "b2c",
+          "Message-Type": ChatWebSocketEvents.CONNECT,
+        })
+      );
+
+      socketConnectionRef.current.socket.send(
+        JSON.stringify({
+          Authorization: token,
+          chatId: "cc1a8862-142c-4dc8-8bfd-7ae702de4517",
+          "User-Type": "b2c",
+          "Message-Type": ChatWebSocketEvents.JOIN_CHAT,
+        })
+      );
+    };
+
+    socket.onmessage = function (event) {
+      const message = JSON.parse(event.data);
+
+      console.log(message);
+
+      if (typeof message !== "object") return;
+
+      if (
+        message.type === ChatWebSocketEvents.SEND_MESSAGE &&
+        message.content
+      ) {
+        setUnreadMsgs((prevState) => [...prevState, message.content.id]);
+      }
+    };
+
+    socket.onclose = function (event) {
+      console.log("Соединение закрыто", event);
+      socketConnectionRef.current = null;
+    };
+
+    socket.onerror = function (error) {
+      console.log(`Ошибка:`, error);
+    };
+
+    // Clean up the connection when the component unmounts
+    return () => {
+      if (!socketConnectionRef.current?.isLoading)
+        socketConnectionRef.current?.socket.close();
+    };
+  }, []);
+
+  const handleSendMsg = async () => {
+    if (!socketConnectionRef.current || socketConnectionRef.current.isLoading)
+      return console.error("Could not connect to the chat");
+
+    const message = {
+      chatId: "cc1a8862-142c-4dc8-8bfd-7ae702de4517",
+      content: "Hello, World!",
+      sentAt: new Date().toISOString(),
+      files: [],
+    };
+
+    socketConnectionRef.current.socket.send(
+      JSON.stringify({
+        ...message,
+        Authorization: token,
+        "Message-Type": ChatWebSocketEvents.SEND_MESSAGE,
+        "User-Type": "b2c",
+      })
+    );
+  };
+
+  const handleReadMsg = () => {
+    console.log(unreadMsgs);
+
+    if (
+      unreadMsgs.length > 0 &&
+      socketConnectionRef.current &&
+      !socketConnectionRef.current.isLoading
+    ) {
+      socketConnectionRef.current.socket.send(
+        JSON.stringify({
+          Authorization: token,
+          "Message-Type": ChatWebSocketEvents.UPDATE_MESSAGE_STATUSES,
+          "User-Type": "b2c",
+          ids: unreadMsgs,
+        })
+      );
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <button onClick={handleSendMsg}>Send message</button>
+      <button onClick={handleReadMsg}>Read messages</button>
     </div>
   );
 }
